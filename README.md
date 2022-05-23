@@ -1,5 +1,9 @@
 # wbL0
 
+client id must be different
+
+-help to view all flags
+
 ### Start the NATS Streaming Server
 https://docs.nats.io/legacy/stan/changes/run
 
