@@ -4,6 +4,11 @@ client id must be different
 
 -help to view all flags
 
+run:
+* stan: cd nats-streaming-server; go run nats-streaming-server.go
+* subscriber: go run main.go -ch=qoo
+* publisher: go run publisher/publisher.go -ch=qoo -msg=hi
+
 ### Start the NATS Streaming Server
 https://docs.nats.io/legacy/stan/changes/run
 
