@@ -1,4 +1,4 @@
 CREATE TABLE delivery (
-    id          SERIAL PRIMARY KEY,
+    id          varchar(128) PRIMARY KEY,
     content     text NOT NULL
 );

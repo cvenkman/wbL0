@@ -1,104 +1,35 @@
 package main
 
 import (
-	"log"
-	"os/signal"
-	"github.com/nats-io/stan.go"
-	"fmt"
-	"sync"
-	"os"
-	"flag"
-	"github.com/spf13/viper"
-	"strings"
-	"net/http"
-	"database/sql"
-	_ "github.com/lib/pq" // <------------ here
 	"errors"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"encoding/json"
+	"database/sql"
+
+	"github.com/cvenkman/wbL0/model"
+	"github.com/cvenkman/wbL0/internal/config"
+	"github.com/cvenkman/wbL0/internal/server"
+	"github.com/cvenkman/wbL0/internal/postgres"
+	_ "github.com/lib/pq" // <------------ here
+	"github.com/nats-io/stan.go"
 )
-
-type Config struct {
-	bind_addr string
-	db DBconfig
-}
-
-type DBconfig struct {
-	name string
-	table string
-	username string
-	password string
-	host string
-}
 
 func printMsg(m *stan.Msg, i int) {
 	log.Printf("[#%d] Received: %s\n", i, m)
 }
 
-func Connect(config Config) (*sql.DB, error) {
-	url := fmt.Sprintf("postgresql://%s:%s@%s/%s", config.db.username, config.db.password, config.db.host, config.db.name)
-	//?sslmode=disable ???? это что
-	fmt.Println(url)
-	open, err := sql.Open("postgres", url)
-	if err != nil {
-		return nil, err
+func getModelID(data []byte) (string, error) {
+	var model model.Delivery
+	err := json.Unmarshal(data, &model)
+	if err != nil || model.OrderUID == "" {
+		return "", errors.New("Unmarshal error: ")
 	}
-	return open, nil
-}
-
-func Select(open *sql.DB, config Config) error {
-	q := "SELECT * FROM " + config.db.table + " ;"
-	query, err := open.Query(q) // FIXME test from config
-	if err != nil {
-		return err
-	}
-	defer func(query *sql.Rows) {
-		err := query.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}(query)
-
-	for query.Next() {
-		var content, id []byte
-		err := query.Scan(&id, &content)
-		if err != nil {
-			return err
-		}
-		fmt.Println("++ ", string(content))
-	}
-	return nil
-}
-
-func Add(open *sql.DB, data []byte, config Config) error {
-	q := "INSERT INTO " + config.db.table + " (id, content) VALUES ($1, $2);"
-	_, err := open.Exec(q, 2, string(data)) // FIXME remove string()
-	if err != nil {
-		return errors.New("Can't INSERT INTO " + config.db.table + ": " + err.Error())
-	}
-	return nil
-}
-
-func readConfig(configPath string) (Config, error) {
-	slashIndex := strings.Index(configPath, "/")
-	configName := configPath[slashIndex:strings.Index(configPath, ".")]
-	viper.SetConfigName(configName)
-	viper.AddConfigPath(configPath[:slashIndex])
-	viper.SetConfigType("toml")
-
-	var config Config
-	err := viper.ReadInConfig()
-	if err != nil {
-		return config, err
-	}
-	config.bind_addr = viper.GetString("bind_addr")
-	
-	/* get database info from config */
-	dbInfo := viper.GetStringMapString("database")
-	config.db.name = dbInfo["name"]
-	config.db.table = dbInfo["table"]
-	config.db.password = dbInfo["password"]
-	config.db.host = dbInfo["host"]
-	config.db.username = dbInfo["username"]
-	return config, nil
+	return model.OrderUID, nil
 }
 
 func main() {
@@ -106,13 +37,14 @@ func main() {
 	flag.StringVar(&configPath, "config", "configs/config.toml", "path to config file")
 	
 	var mutex sync.Mutex // ???
+
 	var clusterID, clientID, channel string
 	flag.StringVar(&clusterID, "cl", "test-cluster", "The NATS Streaming cluster ID")
 	flag.StringVar(&clientID, "id", "stan-subscriber", "The NATS Streaming client ID to connect with")
 	flag.StringVar(&channel, "ch", "test-channel", "The NATS Streaming channel to create")
 	flag.Parse()
 
-	config, err := readConfig(configPath)
+	config, err := config.ReadConfig(configPath)
 	if err != nil {
 		log.Fatal("Can't read config file: ", err.Error()) // заменитьь log.Fatal на создание своей ошибки и возврт ее из run()
 	}
@@ -123,32 +55,24 @@ func main() {
 	}
 	defer sc.Close()
 
-	var str []byte
+	// var data []byte
 
-	open, err := Connect(config)
+	open, err := postgres.Connect(config)
 	if err != nil {
 		sc.Close()
-		log.Fatalf("Can't connect to %s db %s", config.db.name, err.Error())
-	}
-	err = Select(open, config)
-	if err != nil {
-		sc.Close()
-		log.Fatalf("Can't SELECT * FROM %s: %s", config.db.table, err.Error())
+		log.Fatalf("Can't connect to %s db %s", config.DB.Name, err.Error())
 	}
 	/* в этой функции нужно добавить инфу в бд */
 	msgHandler := func(msg *stan.Msg) { // убрать в анонимную функцию внутрь sc.Subscribe
 		mutex.Lock() // ???
-		// printMsg(msg, 0)
-		str = msg.Data
-		fmt.Println(string(str))
-		err = Add(open, str, config)
+		err = addToDB(msg, open, config)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		mutex.Unlock()
 	}
 	
-	// // Simple Async Subscriber
+	// Simple Async Subscriber
 	sub, err := sc.Subscribe(channel, msgHandler)
 	if err != nil {
 		sc.Close()
@@ -156,17 +80,15 @@ func main() {
 	}
 	log.Printf("Listening")
 
-	// here Start http server listening
-	// server.Start()
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, string(str))
-	})
-	http.ListenAndServe(config.bind_addr, nil) // FIXME add port from config
+	go server.Serv(config, open)
 
-
-	// Wait for a SIGINT (perhaps triggered by user with CTRL-C)
-	// Run cleanup when signal is received
 	cleanupDone := make(chan bool)
+	cleanupAfterSIGINT(cleanupDone, sub, sc)
+	<-cleanupDone
+}
+
+// Wait for a SIGINT (perhaps triggered by user with CTRL-C)
+func cleanupAfterSIGINT(cleanupDone chan bool, sub stan.Subscription, sc stan.Conn) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
@@ -177,5 +99,28 @@ func main() {
 			cleanupDone <- true
 		}
 	}()
-	<-cleanupDone
+}
+
+func addToDB(msg *stan.Msg, open *sql.DB, config config.Config) error {
+		// printMsg(msg, 0)
+		data := msg.Data
+		modelID, err := getModelID(data)
+		if err != nil {
+			// log.Println(err)
+			// mutex.Unlock()
+			return err
+		}
+		fmt.Println(modelID)
+		// err = CheckExist(open, modelID, config)
+		// if err != nil {
+		// 	log.Println(err)
+		// 	mutex.Unlock()
+		// 	return
+		// }
+		err = postgres.Add(open, modelID, data, config)
+		if err != nil {
+			// log.Println(err)
+			return err
+		}
+	return nil
 }
