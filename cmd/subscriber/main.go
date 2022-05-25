@@ -13,12 +13,20 @@ import (
 	"net/http"
 	"database/sql"
 	_ "github.com/lib/pq" // <------------ here
+	"errors"
 )
 
 type Config struct {
 	bind_addr string
-	database_name string
-	table_name string
+	db DBconfig
+}
+
+type DBconfig struct {
+	name string
+	table string
+	username string
+	password string
+	host string
 }
 
 func printMsg(m *stan.Msg, i int) {
@@ -26,13 +34,8 @@ func printMsg(m *stan.Msg, i int) {
 }
 
 func Connect(config Config) (*sql.DB, error) {
-	username := "postgres"
-	password := "postgres"
-	host := "localhost"
-	database := config.database_name
-
-	// url := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", username, password, host, port, database)
-	url := "postgresql://" + username + ":" + password + "@" + host + "/" + database + "?sslmode=disable"
+	url := fmt.Sprintf("postgresql://%s:%s@%s/%s", config.db.username, config.db.password, config.db.host, config.db.name)
+	//?sslmode=disable ???? это что
 	fmt.Println(url)
 	open, err := sql.Open("postgres", url)
 	if err != nil {
@@ -42,7 +45,7 @@ func Connect(config Config) (*sql.DB, error) {
 }
 
 func Select(open *sql.DB, config Config) error {
-	q := "SELECT * FROM " + config.table_name + " ;"
+	q := "SELECT * FROM " + config.db.table + " ;"
 	query, err := open.Query(q) // FIXME test from config
 	if err != nil {
 		return err
@@ -55,22 +58,23 @@ func Select(open *sql.DB, config Config) error {
 	}(query)
 
 	for query.Next() {
-		var tmpSLB []byte
-		err := query.Scan(&tmpSLB)
+		var content, id []byte
+		err := query.Scan(&id, &content)
 		if err != nil {
 			return err
 		}
-		fmt.Println("++ ", string(tmpSLB))
+		fmt.Println("++ ", string(content))
 	}
 	return nil
 }
 
-func Add(open *sql.DB, str []byte, config Config) {
-	q := "INSERT INTO " + config.table_name + " (id, content) VALUES ($1, $2);"
-	_, err := open.Exec(q, 1, string(str)) // FIXME test from config and remove string()
+func Add(open *sql.DB, data []byte, config Config) error {
+	q := "INSERT INTO " + config.db.table + " (id, content) VALUES ($1, $2);"
+	_, err := open.Exec(q, 2, string(data)) // FIXME remove string()
 	if err != nil {
-		log.Fatal(err)
+		return errors.New("Can't INSERT INTO " + config.db.table + ": " + err.Error())
 	}
+	return nil
 }
 
 func readConfig(configPath string) (Config, error) {
@@ -86,8 +90,14 @@ func readConfig(configPath string) (Config, error) {
 		return config, err
 	}
 	config.bind_addr = viper.GetString("bind_addr")
-	config.database_name = viper.GetString("database_name")
-	config.table_name = viper.GetString("table_name")
+	
+	/* get database info from config */
+	dbInfo := viper.GetStringMapString("database")
+	config.db.name = dbInfo["name"]
+	config.db.table = dbInfo["table"]
+	config.db.password = dbInfo["password"]
+	config.db.host = dbInfo["host"]
+	config.db.username = dbInfo["username"]
 	return config, nil
 }
 
@@ -104,12 +114,12 @@ func main() {
 
 	config, err := readConfig(configPath)
 	if err != nil {
-		log.Fatal("Can't read config file: ", err.Error())
+		log.Fatal("Can't read config file: ", err.Error()) // заменитьь log.Fatal на создание своей ошибки и возврт ее из run()
 	}
 
 	sc, err := stan.Connect(clusterID, clientID)
 	if err != nil {
-		log.Fatalf("Can't connect publish %s", err.Error())
+		log.Fatalf("Can't connect to stan %s", err.Error())
 	}
 	defer sc.Close()
 
@@ -118,19 +128,23 @@ func main() {
 	open, err := Connect(config)
 	if err != nil {
 		sc.Close()
-		log.Fatalf("Can't connect publish %s", err.Error())
+		log.Fatalf("Can't connect to %s db %s", config.db.name, err.Error())
 	}
 	err = Select(open, config)
 	if err != nil {
 		sc.Close()
-		log.Fatalf("Can't connect publish %s", err.Error())
+		log.Fatalf("Can't SELECT * FROM %s: %s", config.db.table, err.Error())
 	}
 	/* в этой функции нужно добавить инфу в бд */
 	msgHandler := func(msg *stan.Msg) { // убрать в анонимную функцию внутрь sc.Subscribe
 		mutex.Lock() // ???
-		printMsg(msg, 0)
+		// printMsg(msg, 0)
 		str = msg.Data
-		Add(open, str, config)
+		fmt.Println(string(str))
+		err = Add(open, str, config)
+		if err != nil {
+			log.Fatal(err)
+		}
 		mutex.Unlock()
 	}
 	
@@ -138,7 +152,7 @@ func main() {
 	sub, err := sc.Subscribe(channel, msgHandler)
 	if err != nil {
 		sc.Close()
-		log.Fatalf("Can't connect publish %s", err.Error())
+		log.Fatalf("Can't subscribe to %s channel: %s", channel, err.Error())
 	}
 	log.Printf("Listening")
 

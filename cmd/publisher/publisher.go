@@ -24,7 +24,7 @@ func main() {
 	flag.StringVar(&clientID, "id", "stan-publisher", "The NATS Streaming client ID to connect with")
 	flag.StringVar(&channel, "ch", "test-channel", "The NATS Streaming channel to create")
 	// flag.StringVar(&msg, "msg", "hello!", "Data to publish")
-	flag.StringVar(&dataPath, "data", "model/model.json", "Json data(model) to publish")
+	flag.StringVar(&dataPath, "data", "model/model.json1", "Json data(model) to publish")
 	flag.Parse()
 
 	sc, err := stan.Connect(clusterID, clientID)
