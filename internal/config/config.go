@@ -1,15 +1,18 @@
 package config
 
 import (
+	"errors"
 	"strings"
 	"github.com/spf13/viper"
 )
 
+// struct for config file
 type Config struct {
 	Bind_addr string
 	DB DBconfig
 }
 
+// struct for database config
 type DBconfig struct {
 	Name string
 	Table string
@@ -18,6 +21,7 @@ type DBconfig struct {
 	Host string
 }
 
+// add info from config to config and db struct's
 func ReadConfig(configPath string) (Config, error) {
 	slashIndex := strings.Index(configPath, "/")
 	configName := configPath[slashIndex:strings.Index(configPath, ".")]
@@ -28,11 +32,10 @@ func ReadConfig(configPath string) (Config, error) {
 	var config Config
 	err := viper.ReadInConfig()
 	if err != nil {
-		return config, err
+		return config, errors.New("Can't read config: " + err.Error())
 	}
 	config.Bind_addr = viper.GetString("bind_addr")
 
-	/* get database info from config */
 	dbInfo := viper.GetStringMapString("database")
 	config.DB.Name = dbInfo["name"]
 	config.DB.Table = dbInfo["table"]

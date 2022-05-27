@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Model</title>
+        <style>
+            .center {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+            }
+            body {
+                background-color: #fadadd;
+            }
+            button {
+                background: #ef8891;
+            }
+        </style>
+    </head>
+    <body>
+    <div class="center">
+        <form method="GET" action="/">
+            <button>back</button>
+        </form>
+        <h3>Result:</h3>
+        <p style="white-space: pre" >{{ . }}</p>
+    </div>
+    </body>
+</html>
