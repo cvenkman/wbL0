@@ -1,7 +1,7 @@
 # wbL0
 
 * [Start](#Start the NATS Streaming Server)
-* [Stress test](#Stress)
+* [Stress test](#Stresstest)
 * [fd](#Strest)
 
 configuration - [viper](https://github.com/spf13/viper)
