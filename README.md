@@ -24,6 +24,10 @@ make
 ```
 ./publisher -data=testData/model1.json
 ```
+Для проверки: запустить скрипт, который отправляет валидные json и файлы с ошибками:
+```
+sh test.sh
+```
 
 ### Флаги
 <a name="flags"></a>
