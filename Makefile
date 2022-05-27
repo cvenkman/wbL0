@@ -1,4 +1,4 @@
-APP = subscriber
+APP = server
 PUB = publisher
 
 all: $(APP) $(PUB)

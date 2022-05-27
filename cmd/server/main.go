@@ -1,19 +1,21 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"flag"
 	"log"
-	"database/sql"
-	"github.com/cvenkman/wbL0/model"
-	"github.com/cvenkman/wbL0/internal/config"
-	"github.com/cvenkman/wbL0/internal/server"
-	"github.com/cvenkman/wbL0/internal/postgres"
-	"github.com/cvenkman/wbL0/internal/stan"
+
 	dbCache "github.com/cvenkman/wbL0/internal/cache"
+	"github.com/cvenkman/wbL0/internal/config"
+	"github.com/cvenkman/wbL0/internal/postgres"
+	"github.com/cvenkman/wbL0/internal/server"
+	"github.com/cvenkman/wbL0/internal/stan"
 	"github.com/cvenkman/wbL0/internal/utils"
-	"github.com/patrickmn/go-cache"
+	"github.com/cvenkman/wbL0/model"
 	_ "github.com/lib/pq"
 	stanAPI "github.com/nats-io/stan.go"
+	"github.com/patrickmn/go-cache"
 )
 
 func parseFlags(configPath *string, st *stan.Stan) {
@@ -40,12 +42,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	cache, err := dbCache.New(open, config)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	sub, sc := st.InitStan(func(msg *stanAPI.Msg) {
 		err = saveData(msg.Data, open, config, cache)
 		if err != nil {
@@ -67,10 +69,12 @@ func saveData(data []byte, open *sql.DB, config config.Config, c *cache.Cache) e
 	if err != nil {
 		return err
 	}
+	if modelID == "" {
+		return errors.New("Error: empty ID")
+	}
 
 	err = postgres.Add(open, modelID, data, config)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	c.Set(modelID, data, cache.NoExpiration)

@@ -36,7 +36,7 @@ func New(conf config.Config, open *sql.DB, c *cache.Cache) *Server {
 
 // Start http server listening
 func (s *Server) Start() {
-	log.Println("Server start on port", s.conf.Bind_addr)
+	log.Println("Server start on port", s.conf.Bind_addr + "\n")
 
 	http.HandleFunc("/", s.handleMain)
 	http.HandleFunc("/order", s.handleOrder)

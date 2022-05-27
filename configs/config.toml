@@ -4,7 +4,7 @@ bind_addr = ":8080"
 log_level = "debug"
 
 [database]
-name = "test_db"
+name = "cvenkman"
 username = "postgres"
 password = "postgres"
 host = "localhost"

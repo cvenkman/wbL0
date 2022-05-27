@@ -1,5 +1,8 @@
 # wbL0
 
+* [Start](#Start the NATS Streaming Server)
+* [Stress test](#Stress test)
+
 configuration - [viper](https://github.com/spf13/viper)
 
 client id must be different
@@ -28,3 +31,11 @@ git clone https://github.com/nats-io/stan.go.git
 ```
 go run nats-streaming-server.go
 ```
+
+
+### Stress test
+
+[WRK](https://github.com/wg/wrk) it's a tool for stress test
+
+
+![wrk](wrk.png)
