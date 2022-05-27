@@ -1,8 +1,8 @@
 # wbL0
 
 * [Start](#Start the NATS Streaming Server)
-* [Stress test](#Stresstest)
-* [fd](#Strest)
+* [Stress test](#Stress_test)
+* [fd](#Strest_wef)
 
 configuration - [viper](https://github.com/spf13/viper)
 
@@ -42,11 +42,11 @@ f
 
 
 ### Stress test
-
+<a name="Stress_test"></a>
 [WRK](https://github.com/wg/wrk) it's a tool for stress test
 
 
 ![wrk](wrk.png)
 
-### Strest
+### Strest wef
 fedsqefd
