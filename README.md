@@ -2,9 +2,11 @@
 
 ## Содержание
 * [Запуск](#run)
+* [Постоянная подписка или сервер не теряет данные при отключении](#)
 * [Флаги](#flags)
 * [Конфигурация](#configuration)
-* [База данных](#)
+* [База данных](#postgres)
+* [Кеш](#)
 * [Запуск NATS Streaming Server](#start_stan)
 * [Стресс тест](#Stress_test)
 
@@ -29,16 +31,15 @@ make
 sh test.sh
 ```
 
-## Флаги
-<a name="flags"></a>
+## Флаги <a name="flags"></a>
+
 Чтобы посмотреть все флаги и их значения, нужно передать флаг -help (./server -help)
 
 Заметки по флагам:
 * Для успешной публикации данных на сервере флаг -ch должен быть одинаковым у ./server и ./publisher
 * Флаг -id у ./server и ./publisher должен быть разный
 
-## Конфигурация
-<a name="configuration"></a>
+## Конфигурация <a name="configuration"></a>
 
 Стандартный файл - configs/config.go
 
@@ -50,14 +51,24 @@ sh test.sh
 
 Конфиг парсится с помощью [viper](https://github.com/spf13/viper)
 
-## База данных
+## База данных <a name="postgres"></a>
 БД - postgreSQL
 
-Информация для создания таблицы в _info/init.sql
+Информация для создания таблицы:
 
+``` SQL
+CREATE DATABASE cvenkman; /* or change database name in configs/config.toml */
 
-## Запуск NATS Streaming Server (stan)
-<a name="start_stan"></a>
+DROP TABLE IF EXISTS delivery;
+
+CREATE TABLE delivery (
+    id          varchar(128) PRIMARY KEY,
+    content     text NOT NULL
+);
+```
+
+## Запуск NATS Streaming Server (stan) <a name="start_stan"></a>
+
 [NATS Streaming documentation](https://docs.nats.io/legacy/stan/changes/run)
 
 ```
@@ -66,8 +77,7 @@ cd nats-streaming-server
 go run nats-streaming-server.go
 ```
 
-## Стресс тест
-<a name="Stress_test"></a>
+## Стресс тест <a name="Stress_test"></a>
 
 [WRK](https://github.com/wg/wrk) - утилита для стресс тестов.
 
