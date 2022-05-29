@@ -2,12 +2,12 @@
 
 ## Содержание
 * [Запуск](#run)
-* [Постоянная подписка или сервер не теряет данные при отключении](#)
 * [Флаги](#flags)
 * [Конфигурация](#configuration)
 * [База данных](#postgres)
-* [Кеш](#)
-* [Запуск NATS Streaming Server](#start_stan)
+* [Кеш](#cache)
+* [Запуск NATS Streaming Server (stan)](#start_stan)
+* [Постоянная подписка stan](#durable)
 * [Стресс тест](#Stress_test)
 
 ## Запуск
@@ -67,7 +67,14 @@ CREATE TABLE delivery (
 );
 ```
 
-## Запуск NATS Streaming Server (stan) <a name="start_stan"></a>
+## Кеш <a name="cache"></a>
+
+При первом запуске сервера и при добавлении новых json файлов, информация добавляется в БД и сохраняется в кеше.
+При запросе модели по id, она берется из кеша.
+
+Кеш реалиизован как map[string][string] с помощью [go-cache](https://github.com/patrickmn/go-cache).
+
+## Запуск NATS Streaming Server <a name="start_stan"></a>
 
 [NATS Streaming documentation](https://docs.nats.io/legacy/stan/changes/run)
 
@@ -76,6 +83,10 @@ git clone https://github.com/nats-io/nats-streaming-server.git
 cd nats-streaming-server
 go run nats-streaming-server.go
 ```
+
+## Постоянная подписка stan <a name="durable"></a>
+
+Сервер подписывается на канал stan через постоянную (durable) подписку, поэтому, если отключить сервер, но продолжать публиковать данные в канал, при следующем запуске сервера эта информация запишется.
 
 ## Стресс тест <a name="Stress_test"></a>
 
