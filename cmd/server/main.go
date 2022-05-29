@@ -50,6 +50,7 @@ func main() {
 	
 	sub, sc := st.InitStan(func(msg *stanAPI.Msg) {
 		err = saveData(msg.Data, open, config, cache)
+		msg.Ack()
 		if err != nil {
 			log.Println(err)
 		}

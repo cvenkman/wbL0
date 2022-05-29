@@ -2,6 +2,8 @@ package stan
 
 import (
 	"log"
+	"time"
+
 	"github.com/nats-io/stan.go"
 )
 
@@ -27,7 +29,9 @@ func (st *Stan) InitStan(msgHandler stan.MsgHandler) (sub stan.Subscription, sc 
 		log.Fatalf("Can't connect to stan %s", err.Error())
 	}
 
-	sub, err = sc.Subscribe(st.Channel, msgHandler)
+	sub, err = sc.Subscribe(st.Channel, msgHandler,
+				stan.SetManualAckMode(), stan.AckWait(6 * time.Second),
+				stan.DurableName(st.ClientID), stan.StartWithLastReceived())
 	if err != nil {
 		sc.Close()
 		log.Fatalf("Can't subscribe to %s channel: %s", st.Channel, err.Error())

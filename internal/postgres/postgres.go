@@ -26,7 +26,7 @@ func Add(open *sql.DB, modelID string, data []byte, config config.Config) error 
 
 	_, err := open.Exec(q, modelID, data)
 	if err != nil {
-		return errors.New("Can't INSERT INTO " + config.DB.Table + ": " + err.Error())
+		return errors.New("Can't INSERT INTO " + config.DB.Table + ", id=" + modelID + ": " + err.Error())
 	}
 	return nil
 }
