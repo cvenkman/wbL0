@@ -57,7 +57,7 @@ func main() {
 	})
 
 	serverAPI := server.New(config, open, cache)
-	go serverAPI.Start()
+	serverAPI.Start()
 
 	cleanupDone := make(chan bool)
 	utils.CleanupAfterSIGINT(cleanupDone, sub, sc)
@@ -78,7 +78,7 @@ func saveData(data []byte, open *sql.DB, config config.Config, c *cache.Cache) e
 	if err != nil {
 		return err
 	}
-	c.Set(modelID, data, cache.NoExpiration)
+	c.Set(modelID, string(data), cache.NoExpiration)
 
 	log.Println("model", modelID, "added")
 	return nil

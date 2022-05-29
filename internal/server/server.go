@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-
 	"github.com/cvenkman/wbL0/internal/config"
 	"github.com/patrickmn/go-cache"
 )
@@ -75,14 +74,25 @@ func (s *Server) handleMain(w http.ResponseWriter, r *http.Request) {
 
 	template, err := template.ParseFiles("internal/server/templates/model.html")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Can't parse internal/server/templates/model.html:", err)
 	}
 
 	// indent json file
-	marshal := data.(string)
+	marshal, ok := data.(string)
+	if !ok {
+		log.Println("Error convert data to string")
+
+		templateErr, err := template.ParseFiles("internal/server/templates/modelNotFound.html")
+		err = templateErr.Execute(w, "Error convert data to string")
+		if err != nil {
+			log.Println("handleOrder error: ", err)
+		}
+		return
+	}
 	var buf bytes.Buffer
 	err = json.Indent(&buf, []byte(marshal), "", "\t")
 	if err != nil {
+		log.Fatal("Can't indent json:", err)
 		return
 	}
 
